@@ -51,4 +51,3 @@ final class stringifyTests: XCTestCase {
         XCTAssertEqual(stringify(obj: obj), "_includes[0][favorites][_includes][0]=user")
     }
 }
-
