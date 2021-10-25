@@ -1,6 +1,5 @@
 import Foundation
 
-
 fileprivate func split(usingRegex pattern: String, str: String) -> [String] {
     let regex = try! NSRegularExpression(pattern: pattern)
     let matches = regex.matches(in: str, range: NSRange(0..<str.utf16.count))
@@ -8,13 +7,12 @@ fileprivate func split(usingRegex pattern: String, str: String) -> [String] {
     return (0...matches.count).map {String(str[ranges[$0].upperBound..<ranges[$0+1].lowerBound])}
 }
 
-private func encodeUrl(str: String) -> String?
-    {
-        return str.addingPercentEncoding( withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
-    }
+private func encodeUrl(str: String) -> String? {
+    return str.addingPercentEncoding( withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
+}
 
 
-public func stringify(obj: [String: Any]) -> String {
+public func stringify(_ obj: [String: Any]) -> String {
     var tokens: [String] = []
     for (key, value) in obj {
         tokens.append(contentsOf: genTokens(items: [key], value: value))
@@ -55,7 +53,7 @@ private func genKey(items: [String]) -> String {
     return "\(items[0])[\(items[1...].joined(separator: "]["))]".replacingOccurrences(of: "[]", with: "")
 }
 
-public func parse(qs: String) -> [String: Any] {
+public func parse(_ qs: String) -> [String: Any] {
     var result: [String: Any] = [:]
     if qs == "" {
         return result
