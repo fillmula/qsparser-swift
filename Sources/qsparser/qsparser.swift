@@ -8,7 +8,7 @@ fileprivate func split(usingRegex pattern: String, str: String) -> [String] {
     return (0...matches.count).map {String(str[ranges[$0].upperBound..<ranges[$0+1].lowerBound])}
 }
 
-func encodeUrl(str: String) -> String?
+private func encodeUrl(str: String) -> String?
     {
         return str.addingPercentEncoding( withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
     }
@@ -22,7 +22,7 @@ public func stringify(obj: [String: Any]) -> String {
     return tokens.joined(separator: "&")
 }
 
-public func genTokens(items: [String], value: Any?) -> [String] {
+private func genTokens(items: [String], value: Any?) -> [String] {
     var result: [String] = []
     if let nsValue = value as? NSNumber {
         if let boolValue = value as? Bool {
@@ -51,7 +51,7 @@ public func genTokens(items: [String], value: Any?) -> [String] {
     }
 }
 
-public func genKey(items: [String]) -> String {
+private func genKey(items: [String]) -> String {
     return "\(items[0])[\(items[1...].joined(separator: "]["))]".replacingOccurrences(of: "[]", with: "")
 }
 
