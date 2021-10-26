@@ -11,6 +11,10 @@ private func encodeUrl(str: String) -> String? {
     return str.addingPercentEncoding( withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
 }
 
+private func decodeUrl(str: String) -> String? {
+    return str.removingPercentEncoding
+}
+
 
 public func stringify(_ obj: [String: Any]) -> String {
     var tokens: [String] = []
@@ -67,7 +71,7 @@ public func parse(_ qs: String) -> [String: Any] {
         }
         let items = split(usingRegex: "\\]?\\[", str: String(k))
         if items.count == 1 {
-            result[items[0]] = v
+            result[items[0]] = decodeUrl(str: v)
         }
     }
     return result
