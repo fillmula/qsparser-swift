@@ -1,5 +1,5 @@
 import XCTest
-@testable import qsparser
+@testable import QSParser
 
 
 final class parserTests: XCTestCase {
