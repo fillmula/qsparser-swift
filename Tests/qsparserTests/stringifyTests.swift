@@ -33,17 +33,28 @@ final class stringifyTests: XCTestCase {
     }
     
     func testStringifyConcatsMultipleItemsWithTheAmpersand() throws {
-        XCTAssertEqual(stringify(["a": "b", "c": "d"]), "a=b&c=d")
+        let result = ["a=b&c=d", "c=d&a=b"].contains(stringify(["a": "b", "c": "d"]))
+        XCTAssertEqual(result, true)
     }
     
     func testStringifyEncodesDictIntoMultipleEntries() throws {
         let obj = ["a": ["b": "c"], "d": ["e": "f", "g": "h"]]
-        XCTAssertEqual(stringify(obj), "a[b]=c&d[e]=f&d[g]=h")
+        let result = [
+            "a[b]=c&d[e]=f&d[g]=h",
+            "d[e]=f&d[g]=h&a[b]=c",
+            "d[g]=h&d[e]=f&a[b]=c",
+            "a[b]=c&d[g]=h&d[e]=f",
+        ].contains(stringify(obj))
+        XCTAssertEqual(result, true)
     }
     
     func testStringifyEncodesListIntoMultipleEntries() throws {
         let obj = ["a": [1, 2, 3], "b": ["q", "w", "e"]]
-        XCTAssertEqual(stringify(obj), "a[0]=1&a[1]=2&a[2]=3&b[0]=q&b[1]=w&b[2]=e")
+        let result = [
+            "a[0]=1&a[1]=2&a[2]=3&b[0]=q&b[1]=w&b[2]=e",
+            "b[0]=q&b[1]=w&b[2]=e&a[0]=1&a[1]=2&a[2]=3"
+        ].contains(stringify(obj))
+        XCTAssertEqual(result, true)
     }
     
     func testStringifyEncodesNestedItemsIntoALongString() throws {

@@ -8,7 +8,7 @@ fileprivate func split(usingRegex pattern: String, str: String) -> [String] {
 }
 
 private func encodeUrl(str: String) -> String? {
-    return str.addingPercentEncoding( withAllowedCharacters: NSCharacterSet.urlQueryAllowed)
+    return str.addingPercentEncoding( withAllowedCharacters: NSCharacterSet.alphanumerics)
 }
 
 private func decodeUrl(str: String) -> String? {
