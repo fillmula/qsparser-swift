@@ -29,7 +29,7 @@ private func genTokens(items: [String], value: Any?) -> [String] {
     if let nsValue = value as? NSNumber {
         if let boolValue = value as? Bool {
             return ["\(genKey(items: items))=\(boolValue ? "true" : "false")"]
-        }else {
+        } else {
             return ["\(genKey(items: items))=\(nsValue.stringValue)"]
         }
     } else if let listValue = value as? [Any] {
@@ -57,52 +57,70 @@ private func genKey(items: [String]) -> String {
     return "\(items[0])[\(items[1...].joined(separator: "]["))]".replacingOccurrences(of: "[]", with: "")
 }
 
+
+//def parse(qs: str) -> dict[str, Any]:
+//    result: dict[str, Any] = {}
+//    if qs == '':
+//        return result
+//    tokens = qs.split('&')
+//    for token in tokens:
+//        key, value = token.split('=')
+//        items = split('\]?\[', key.removesuffix(']'))
+//        assign_to_result(result, items, value)
+//    return result
+
 public func parse(_ qs: String) -> [String: Any] {
     var result: [String: Any] = [:]
     if qs == "" {
         return result
     }
-    let tokens = qs.split(separator: "&")
+    let tokens = qs.split(separator: "&").map {String($0)}
     for token in tokens {
-        let parts = String(token).split(separator: "=")
-        var (k, v) = (String(parts[0]), String(parts[1]))
-        if k.hasSuffix("]") {
-            k.removeLast()
+        let parts = token.split(separator: "=").map {String($0)}
+        var (key, value) = (parts[0], parts[1])
+        if key.hasSuffix("]") {
+            key.removeLast()
         }
-        let items = split(usingRegex: "\\]?\\[", str: String(k))
-        if items.count == 1 {
-            result[items[0]] = decodeUrl(str: v)
-        }
+        let items = split(usingRegex: "\\]?\\[", str: key)
+        result = combineResult(result, items, value) as! [String : Any]
     }
     return result
 }
 
-
- 
-
-
-//def assign_to_result(result: Union[dict[str, Any],
-//                     list[Any]],
-//                     items: list[str],
-//                     value: str) -> Union[dict[str, Any], list[Any]]:
-//    if len(items) == 1:
-//        if isinstance(result, dict):
-//            result[items[0]] = unquote(value)
-//        else:
-//            result.append(unquote(value))
-//        return result
-//    if isinstance(result, dict) and items[0] not in result:
-//        if len(items) > 1 and items[1] == '0':
-//            result[items[0]] = []
-//        else:
-//            result[items[0]] = {}
-//    if isinstance(result, list) and int(items[0]) >= len(result):
-//        if len(items) > 1 and items[1] == '0':
-//            result.append([])
-//        else:
-//            result.append({})
-//    if isinstance(result, dict):
-//        assign_to_result(result[items[0]], items[1:], value)
-//    else:
-//        assign_to_result(result[int(items[0])], items[1:], value)
-//    return result
+private func combineResult(_ original: Any, _ items: [String], _ value: String) -> Any {
+    var result = original
+    if items.count == 1 {
+        if let dict = result as? [String:Any] {
+            return dict.merging([items[0]: decodeUrl(str: value)!]) {$1}
+        } else if let array = result as? [Any] {
+            return array + [decodeUrl(str: value)!]
+        } else {
+            return result
+        }
+    }
+    if let dict = result as? [String:Any], dict[items[0]] == nil {
+        if items.count > 1, items[1] == "0" {
+            result = dict.merging([items[0]: []]) {$1}
+        } else {
+            result = dict.merging([items[0]: [:]]) {$1}
+        }
+    }
+    if let array = result as? [Any], Int(items[0])! >= array.count {
+        if items.count > 1, items[1] == "0" {
+            result = array + [[]]
+        } else {
+            result = array + [[:]]
+        }
+    }
+    if let dict = result as? [String:Any] {
+        return dict.merging([
+            items[0]: combineResult(dict[items[0]]!, Array(items.dropFirst()), value)
+        ]) {$1}
+    } else if let array = result as? [Any] {
+        var retval = array
+        retval[Int(items[0])!] = combineResult(array[Int(items[0])!], Array(items.dropFirst()), value)
+        return retval
+    } else {
+        return result
+    }
+}
