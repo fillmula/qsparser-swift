@@ -7,11 +7,11 @@ fileprivate func split(usingRegex pattern: String, str: String) -> [String] {
     return (0...matches.count).map {String(str[ranges[$0].upperBound..<ranges[$0+1].lowerBound])}
 }
 
-private func encodeUrl(str: String) -> String? {
+fileprivate func encodeUrl(str: String) -> String? {
     return str.addingPercentEncoding( withAllowedCharacters: NSCharacterSet.alphanumerics)
 }
 
-private func decodeUrl(str: String) -> String? {
+fileprivate func decodeUrl(str: String) -> String? {
     return str.removingPercentEncoding
 }
 
@@ -24,7 +24,7 @@ public func stringify(_ obj: [String: Any]) -> String {
     return tokens.joined(separator: "&")
 }
 
-private func genTokens(items: [String], value: Any?) -> [String] {
+fileprivate func genTokens(items: [String], value: Any?) -> [String] {
     var result: [String] = []
     if let nsValue = value as? NSNumber {
         if let boolValue = value as? Bool {
@@ -53,21 +53,9 @@ private func genTokens(items: [String], value: Any?) -> [String] {
     }
 }
 
-private func genKey(items: [String]) -> String {
+fileprivate func genKey(items: [String]) -> String {
     return "\(items[0])[\(items[1...].joined(separator: "]["))]".replacingOccurrences(of: "[]", with: "")
 }
-
-
-//def parse(qs: str) -> dict[str, Any]:
-//    result: dict[str, Any] = {}
-//    if qs == '':
-//        return result
-//    tokens = qs.split('&')
-//    for token in tokens:
-//        key, value = token.split('=')
-//        items = split('\]?\[', key.removesuffix(']'))
-//        assign_to_result(result, items, value)
-//    return result
 
 public func parse(_ qs: String) -> [String: Any] {
     var result: [String: Any] = [:]
@@ -87,7 +75,7 @@ public func parse(_ qs: String) -> [String: Any] {
     return result
 }
 
-private func combineResult(_ original: Any, _ items: [String], _ value: String) -> Any {
+fileprivate func combineResult(_ original: Any, _ items: [String], _ value: String) -> Any {
     var result = original
     if items.count == 1 {
         if let dict = result as? [String:Any] {
