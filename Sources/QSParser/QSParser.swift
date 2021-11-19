@@ -210,9 +210,17 @@ private class QSEncoderSingleValueContainer: SingleValueEncodingContainer {
     }
 
     func encode<T>(_ value: T) throws where T : Encodable {
-        let encoder = QSRootEncoder(to: tokens)
-        encoder.codingPath = codingPath
-        try value.encode(to: encoder)
+        if let date = value as? Date {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            let dateString = formatter.string(from: date)
+            tokens.encode(key: codingPath, value: dateString)
+        } else {
+            let encoder = QSRootEncoder(to: tokens)
+            encoder.codingPath = codingPath
+            try value.encode(to: encoder)
+        }
     }
 }
 
@@ -310,9 +318,17 @@ private class QSEncoderUnkeyedContainer: UnkeyedEncodingContainer {
     }
 
     func encode<T>(_ value: T) throws where T : Encodable {
-        let encoder = QSRootEncoder(to: tokens)
-        encoder.codingPath = codingPath + [nextIndexedKey()]
-        try value.encode(to: encoder)
+        if let date = value as? Date {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            let dateString = formatter.string(from: date)
+            tokens.encode(key: codingPath + [nextIndexedKey()], value: dateString)
+        } else {
+            let encoder = QSRootEncoder(to: tokens)
+            encoder.codingPath = codingPath + [nextIndexedKey()]
+            try value.encode(to: encoder)
+        }
     }
 
     func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
@@ -403,9 +419,17 @@ private class QSEncoderKeyedContainer<Key: CodingKey>: KeyedEncodingContainerPro
     }
 
     func encode<T>(_ value: T, forKey key: Key) throws where T : Encodable {
-        let encoder = QSRootEncoder(to: tokens)
-        encoder.codingPath = codingPath + [key]
-        try value.encode(to: encoder)
+        if let date = value as? Date {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            let dateString = formatter.string(from: date)
+            tokens.encode(key: codingPath + [key], value: dateString)
+        } else {
+            let encoder = QSRootEncoder(to: tokens)
+            encoder.codingPath = codingPath + [key]
+            try value.encode(to: encoder)
+        }
     }
 
     func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: Key) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
