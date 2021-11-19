@@ -2,7 +2,7 @@ import XCTest
 @testable import QSParser
 
 
-final class parserTests: XCTestCase {
+final class ParserTests: XCTestCase {
 
     func testParseDecodesIntIntoString() throws {
         XCTAssertEqual(parse("a=5") as! [String:String], ["a": "5"])

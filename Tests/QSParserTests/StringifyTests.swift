@@ -2,7 +2,7 @@ import XCTest
 @testable import QSParser
 
 
-final class stringifyTests: XCTestCase {
+final class StringifyTests: XCTestCase {
     
     func testStringifyEncodesIntIntoInt() throws {
         XCTAssertEqual(stringify(["a" : 5]), "a=5")

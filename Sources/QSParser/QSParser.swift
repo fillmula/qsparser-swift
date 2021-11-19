@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 fileprivate func split(usingRegex pattern: String, str: String) -> [String] {
     let regex = try! NSRegularExpression(pattern: pattern)
@@ -27,7 +28,7 @@ fileprivate func genTokens(items: [String], value: Any?) -> [String] {
     var result: [String] = []
     if let nsValue = value as? NSNumber {
         if let boolValue = value as? Bool {
-            return ["\(genKey(items: items))=\(boolValue ? "true" : "false")"]
+            return ["\(genKey(items: items))=\(boolValue.description)"]
         } else {
             return ["\(genKey(items: items))=\(nsValue.stringValue)"]
         }
@@ -113,3 +114,364 @@ fileprivate func combineResult(_ original: Any, _ items: [String], _ value: Stri
         return result
     }
 }
+
+private class QSTokens {
+
+    var tokens: [String] = []
+
+    func encode(key codingKey: [CodingKey], value: String, noEscape: Bool = false) {
+        let count = codingKey.count
+        if count == 0 {
+            tokens.append(value)
+        } else {
+            let first = codingKey[0].stringValue
+            let escapedValue = noEscape ? value : urlEncode(value)
+            if count == 1 {
+                tokens.append("\(first)=\(escapedValue)")
+            } else {
+                let rest = codingKey[1...].map({ "[\($0.stringValue)]" }).joined()
+                tokens.append("\(first)\(rest)=\(escapedValue)")
+            }
+        }
+    }
+
+    func generate() -> String {
+        return tokens.joined(separator: "&")
+    }
+}
+
+private class QSEncoderSingleValueContainer: SingleValueEncodingContainer {
+
+    var tokens: QSTokens
+
+    var codingPath: [CodingKey]
+
+    init(codingPath: [CodingKey], to: QSTokens) {
+        self.tokens = to
+        self.codingPath = codingPath
+    }
+
+    func encodeNil() throws { }
+
+    func encode(_ value: Bool) throws {
+        tokens.encode(key: codingPath, value: value.description)
+    }
+
+    func encode(_ value: String) throws {
+        tokens.encode(key: codingPath, value: value)
+    }
+
+    func encode(_ value: Double) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Float) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int8) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int16) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int32) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int64) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt8) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt16) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt32) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt64) throws {
+        tokens.encode(key: codingPath, value: value.description, noEscape: true)
+    }
+
+    func encode<T>(_ value: T) throws where T : Encodable {
+        let encoder = QSRootEncoder(to: tokens)
+        encoder.codingPath = codingPath
+        try value.encode(to: encoder)
+    }
+}
+
+private class QSEncoderUnkeyedContainer: UnkeyedEncodingContainer {
+
+    private struct IndexedCodingKey: CodingKey {
+        let intValue: Int?
+        let stringValue: String
+
+        init?(intValue: Int) {
+            self.intValue = intValue
+            self.stringValue = intValue.description
+        }
+
+        init?(stringValue: String) {
+            return nil
+        }
+    }
+
+    private func nextIndexedKey() -> CodingKey {
+         let nextCodingKey = IndexedCodingKey(intValue: count)!
+         count += 1
+         return nextCodingKey
+     }
+
+    var count: Int = 0
+
+    private var tokens: QSTokens
+
+    var codingPath: [CodingKey]
+
+    init(codingPath: [CodingKey], to: QSTokens) {
+        self.codingPath = codingPath
+        self.tokens = to
+    }
+
+    func encodeNil() throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: "null")
+    }
+
+    func encode(_ value: Bool) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description)
+    }
+
+    func encode(_ value: String) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value)
+    }
+
+    func encode(_ value: Double) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Float) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int8) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int16) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int32) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int64) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt8) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt16) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt32) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt64) throws {
+        tokens.encode(key: codingPath + [nextIndexedKey()], value: value.description, noEscape: true)
+    }
+
+    func encode<T>(_ value: T) throws where T : Encodable {
+        let encoder = QSRootEncoder(to: tokens)
+        encoder.codingPath = codingPath + [nextIndexedKey()]
+        try value.encode(to: encoder)
+    }
+
+    func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
+        let container = QSEncoderKeyedContainer<NestedKey>(codingPath: codingPath + [nextIndexedKey()], to: tokens)
+        return KeyedEncodingContainer(container)
+    }
+
+    func nestedUnkeyedContainer() -> UnkeyedEncodingContainer {
+        return QSEncoderUnkeyedContainer(
+            codingPath: codingPath + [nextIndexedKey()],
+            to: tokens)
+    }
+
+    func superEncoder() -> Encoder {
+        let encoder = QSRootEncoder(to: tokens)
+        encoder.codingPath.append(nextIndexedKey())
+        return encoder
+    }
+}
+
+private class QSEncoderKeyedContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
+
+    private var tokens: QSTokens
+
+    var codingPath: [CodingKey]
+
+    init(codingPath: [CodingKey], to: QSTokens) {
+        self.codingPath = codingPath
+        self.tokens = to
+    }
+
+    func encodeNil(forKey key: Key) throws { }
+
+    func encode(_ value: Bool, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description)
+    }
+
+    func encode(_ value: String, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value)
+    }
+
+    func encode(_ value: Double, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Float, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int8, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int16, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int32, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: Int64, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt8, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt16, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt32, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode(_ value: UInt64, forKey key: Key) throws {
+        tokens.encode(key: codingPath + [key], value: value.description, noEscape: true)
+    }
+
+    func encode<T>(_ value: T, forKey key: Key) throws where T : Encodable {
+        let encoder = QSRootEncoder(to: tokens)
+        encoder.codingPath = codingPath + [key]
+        try value.encode(to: encoder)
+    }
+
+    func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: Key) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
+        let container = QSEncoderKeyedContainer<NestedKey>(codingPath: codingPath + [key], to: tokens)
+        return KeyedEncodingContainer(container)
+    }
+
+    func nestedUnkeyedContainer(forKey key: Key) -> UnkeyedEncodingContainer {
+        return QSEncoderUnkeyedContainer(codingPath: codingPath + [key], to: tokens)
+    }
+
+    func superEncoder() -> Encoder {
+        let superKey = Key(stringValue: "super")!
+        return superEncoder(forKey: superKey)
+    }
+
+    func superEncoder(forKey key: Key) -> Encoder {
+        let encoder = QSRootEncoder(to: tokens)
+        encoder.codingPath = codingPath + [key]
+        return encoder
+    }
+}
+
+private class QSRootEncoder: Encoder {
+
+    init(to: QSTokens = QSTokens()) {
+        self.tokens = to
+    }
+
+    var tokens: QSTokens
+
+    var codingPath: [CodingKey] = []
+
+    var userInfo: [CodingUserInfoKey : Any] = [:]
+
+    func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
+        let container = QSEncoderKeyedContainer<Key>(codingPath: codingPath, to: tokens)
+        return KeyedEncodingContainer(container)
+    }
+
+    func unkeyedContainer() -> UnkeyedEncodingContainer {
+        return QSEncoderUnkeyedContainer(codingPath: codingPath, to: tokens)
+    }
+
+    func singleValueContainer() -> SingleValueEncodingContainer {
+        return QSEncoderSingleValueContainer(codingPath: codingPath, to: tokens)
+    }
+}
+
+public class QSEncoder: TopLevelEncoder {
+
+    public typealias Output = String
+
+    public func encode<T>(_ value: T) throws -> Output where T : Encodable {
+        let encoder = QSRootEncoder()
+        try value.encode(to: encoder)
+        return encoder.tokens.generate()
+    }
+}
+
+//public class QSDecoder: TopLevelDecoder {
+//
+//    public typealias Input = String
+//
+//    public func decode<T>(_ type: T.Type, from: Input) throws -> T where T : Decodable {
+//        <#code#>
+//    }
+//
+//}
