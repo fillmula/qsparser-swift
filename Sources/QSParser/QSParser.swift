@@ -7,14 +7,13 @@ fileprivate func split(usingRegex pattern: String, str: String) -> [String] {
     return (0...matches.count).map {String(str[ranges[$0].upperBound..<ranges[$0+1].lowerBound])}
 }
 
-fileprivate func encodeUrl(str: String) -> String? {
-    return str.addingPercentEncoding( withAllowedCharacters: NSCharacterSet.alphanumerics)
+fileprivate func urlEncode(_ str: String) -> String {
+    return str.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.alphanumerics)!
 }
 
-fileprivate func decodeUrl(str: String) -> String? {
-    return str.removingPercentEncoding
+fileprivate func urlDecode(_ str: String) -> String {
+    return str.removingPercentEncoding!
 }
-
 
 public func stringify(_ obj: [String: Any]) -> String {
     var tokens: [String] = []
@@ -43,11 +42,13 @@ fileprivate func genTokens(items: [String], value: Any?) -> [String] {
         }
         return result
     } else if let stringValue = value as? String {
-        return ["\(genKey(items: items))=\(encodeUrl(str: stringValue) ?? "")"]
+        return ["\(genKey(items: items))=\(urlEncode(stringValue))"]
     } else if let dateValue = value as? Date {
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd hh:mm:ss"
-        return ["\(genKey(items: items))=\(encodeUrl(str: df.string(from: dateValue)) ?? "")"]
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        let dateString = formatter.string(from: dateValue)
+        return ["\(genKey(items: items))=\(urlEncode(dateString))"]
     } else {
         return ["\(genKey(items: items))=null"]
     }
@@ -79,9 +80,9 @@ fileprivate func combineResult(_ original: Any, _ items: [String], _ value: Stri
     var result = original
     if items.count == 1 {
         if let dict = result as? [String:Any] {
-            return dict.merging([items[0]: decodeUrl(str: value)!]) {$1}
+            return dict.merging([items[0]: urlDecode(value)]) { $1 }
         } else if let array = result as? [Any] {
-            return array + [decodeUrl(str: value)!]
+            return array + [urlDecode(value)]
         } else {
             return result
         }

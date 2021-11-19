@@ -23,7 +23,17 @@ final class stringifyTests: XCTestCase {
     func testStringifyEncodesStringIntoString() throws {
         XCTAssertEqual(stringify(["a" : "b"]), "a=b")
     }
-    
+
+    func testStringifyEncodesDateIntoString() throws {
+        let now = Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        let dateString = formatter.string(from: now)
+        let encoded = dateString.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.alphanumerics)!
+        XCTAssertEqual(stringify(["a" : now]), "a=\(encoded)")
+    }
+
     func testStringifyEncodesWhitespaces() throws {
         XCTAssertEqual(stringify(["a" : "b c"]), "a=b%20c")
     }
