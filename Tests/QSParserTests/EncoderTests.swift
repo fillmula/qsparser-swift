@@ -92,20 +92,20 @@ public enum StringQuery: Codable {
     }
 }
 
-struct Product: Encodable {
+struct Product: Codable {
     var name: String
 }
 
-struct User: Encodable {
+struct User: Codable {
     var string: String? = nil
     var int: Int? = nil
     var double: Double? = nil
     var bool: Bool? = nil
     var date: Date? = nil
-    var array: [UInt64] = []
-    var dictionary: [String: String] = [:]
+    var array: [UInt64]?
+    var dictionary: [String: String]? = [:]
     var query: StringQuery? = nil
-    var products: [Product] = []
+    var products: [Product]?
 }
 
 final class EncoderTests: XCTestCase {

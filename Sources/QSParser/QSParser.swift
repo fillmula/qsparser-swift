@@ -8,6 +8,14 @@ fileprivate func split(usingRegex pattern: String, str: String) -> [String] {
     return (0...matches.count).map {String(str[ranges[$0].upperBound..<ranges[$0+1].lowerBound])}
 }
 
+fileprivate func splitTokens(_ value: String) -> [String] {
+    var key = value
+    if key.hasSuffix("]") {
+        key.removeLast()
+    }
+    return split(usingRegex: "\\]?\\[", str: key)
+}
+
 fileprivate func urlEncode(_ str: String) -> String {
     return str.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.alphanumerics)!
 }
@@ -67,11 +75,8 @@ public func parse(_ qs: String) -> [String: Any] {
     let tokens = qs.split(separator: "&").map {String($0)}
     for token in tokens {
         let parts = token.split(separator: "=").map {String($0)}
-        var (key, value) = (parts[0], parts[1])
-        if key.hasSuffix("]") {
-            key.removeLast()
-        }
-        let items = split(usingRegex: "\\]?\\[", str: key)
+        let (key, value) = (parts[0], parts[1])
+        let items = splitTokens(key)
         result = combineResult(result, items, value) as! [String : Any]
     }
     return result
@@ -115,7 +120,7 @@ fileprivate func combineResult(_ original: Any, _ items: [String], _ value: Stri
     }
 }
 
-private class QSTokens {
+private class QSEncoderTokens {
 
     var tokens: [String] = []
 
@@ -142,11 +147,11 @@ private class QSTokens {
 
 private class QSEncoderSingleValueContainer: SingleValueEncodingContainer {
 
-    var tokens: QSTokens
+    var tokens: QSEncoderTokens
 
     var codingPath: [CodingKey]
 
-    init(codingPath: [CodingKey], to: QSTokens) {
+    init(codingPath: [CodingKey], to: QSEncoderTokens) {
         self.tokens = to
         self.codingPath = codingPath
     }
@@ -217,7 +222,7 @@ private class QSEncoderSingleValueContainer: SingleValueEncodingContainer {
             let dateString = formatter.string(from: date)
             tokens.encode(key: codingPath, value: dateString)
         } else {
-            let encoder = QSRootEncoder(to: tokens)
+            let encoder = QSItemEncoder(to: tokens)
             encoder.codingPath = codingPath
             try value.encode(to: encoder)
         }
@@ -244,15 +249,15 @@ private class QSEncoderUnkeyedContainer: UnkeyedEncodingContainer {
          let nextCodingKey = IndexedCodingKey(intValue: count)!
          count += 1
          return nextCodingKey
-     }
+    }
 
     var count: Int = 0
 
-    private var tokens: QSTokens
+    private var tokens: QSEncoderTokens
 
     var codingPath: [CodingKey]
 
-    init(codingPath: [CodingKey], to: QSTokens) {
+    init(codingPath: [CodingKey], to: QSEncoderTokens) {
         self.codingPath = codingPath
         self.tokens = to
     }
@@ -325,7 +330,7 @@ private class QSEncoderUnkeyedContainer: UnkeyedEncodingContainer {
             let dateString = formatter.string(from: date)
             tokens.encode(key: codingPath + [nextIndexedKey()], value: dateString)
         } else {
-            let encoder = QSRootEncoder(to: tokens)
+            let encoder = QSItemEncoder(to: tokens)
             encoder.codingPath = codingPath + [nextIndexedKey()]
             try value.encode(to: encoder)
         }
@@ -343,7 +348,7 @@ private class QSEncoderUnkeyedContainer: UnkeyedEncodingContainer {
     }
 
     func superEncoder() -> Encoder {
-        let encoder = QSRootEncoder(to: tokens)
+        let encoder = QSItemEncoder(to: tokens)
         encoder.codingPath.append(nextIndexedKey())
         return encoder
     }
@@ -351,11 +356,11 @@ private class QSEncoderUnkeyedContainer: UnkeyedEncodingContainer {
 
 private class QSEncoderKeyedContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
 
-    private var tokens: QSTokens
+    private var tokens: QSEncoderTokens
 
     var codingPath: [CodingKey]
 
-    init(codingPath: [CodingKey], to: QSTokens) {
+    init(codingPath: [CodingKey], to: QSEncoderTokens) {
         self.codingPath = codingPath
         self.tokens = to
     }
@@ -426,7 +431,7 @@ private class QSEncoderKeyedContainer<Key: CodingKey>: KeyedEncodingContainerPro
             let dateString = formatter.string(from: date)
             tokens.encode(key: codingPath + [key], value: dateString)
         } else {
-            let encoder = QSRootEncoder(to: tokens)
+            let encoder = QSItemEncoder(to: tokens)
             encoder.codingPath = codingPath + [key]
             try value.encode(to: encoder)
         }
@@ -447,19 +452,19 @@ private class QSEncoderKeyedContainer<Key: CodingKey>: KeyedEncodingContainerPro
     }
 
     func superEncoder(forKey key: Key) -> Encoder {
-        let encoder = QSRootEncoder(to: tokens)
+        let encoder = QSItemEncoder(to: tokens)
         encoder.codingPath = codingPath + [key]
         return encoder
     }
 }
 
-private class QSRootEncoder: Encoder {
+private class QSItemEncoder: Encoder {
 
-    init(to: QSTokens = QSTokens()) {
+    init(to: QSEncoderTokens = QSEncoderTokens()) {
         self.tokens = to
     }
 
-    var tokens: QSTokens
+    var tokens: QSEncoderTokens
 
     var codingPath: [CodingKey] = []
 
@@ -484,18 +489,445 @@ public class QSEncoder: TopLevelEncoder {
     public typealias Output = String
 
     public func encode<T>(_ value: T) throws -> Output where T : Encodable {
-        let encoder = QSRootEncoder()
+        let encoder = QSItemEncoder()
         try value.encode(to: encoder)
         return encoder.tokens.generate()
     }
 }
 
-//public class QSDecoder: TopLevelDecoder {
-//
-//    public typealias Input = String
-//
-//    public func decode<T>(_ type: T.Type, from: Input) throws -> T where T : Decodable {
-//        <#code#>
-//    }
-//
-//}
+private class QSDecoderTokens {
+
+    init(_ value: String) {
+        let pairs = value.split(separator: "&")
+            .map { $0.split(separator: "=").map { String($0) } }
+            .map { (splitTokens($0[0]), $0[1]) }
+        self.tokens = Dictionary(uniqueKeysWithValues: pairs)
+    }
+
+    var tokens: [[String]: String] = [:]
+
+    func hasPath(_ codingPath: [CodingKey]) -> Bool {
+        let key = codingPath.map { $0.stringValue }
+        return tokens.contains { $0.key.starts(with: key)}
+    }
+
+    func getValue(_ codingPath: [CodingKey]) -> String {
+        let key = codingPath.map { $0.stringValue }
+        return tokens.removeValue(forKey: key)!
+    }
+
+    func allKeys<Key: CodingKey>(at codingPath: [CodingKey]) -> [Key] {
+        print(codingPath)
+        let path = codingPath.map { $0.stringValue }
+        let pathCountPlusOne = path.count + 1
+        var filtered = tokens.filter { $0.key.starts(with: path) }
+            .map { $0.key.prefix(pathCountPlusOne) }
+        filtered = Array(Set(filtered))
+        return filtered.map { Key(stringValue: $0.last!)! }
+    }
+
+    func countForArrayAtCodingPath(_ codingPath: [CodingKey]) -> Int {
+        let path = codingPath.map { $0.stringValue }
+        let pathCountPlusOne = path.count + 1
+        var filtered = tokens.filter { $0.key.starts(with: path) }
+            .map { $0.key.prefix(pathCountPlusOne) }
+        filtered = Array(Set(filtered))
+        return filtered.count
+    }
+
+    func decodeBoolValue(_ value: String) -> Bool {
+        switch value {
+        case "true":
+            return true
+        case "True":
+            return true
+        case "TRUE":
+            return true
+        case "YES":
+            return true
+        case "false":
+            return false
+        case "False":
+            return false
+        case "FALSE":
+            return false
+        case "NO":
+            return false
+        default:
+            return false
+        }
+    }
+}
+
+class QSDecoderKeyedContainer<Key: CodingKey>: KeyedDecodingContainerProtocol {
+
+    fileprivate init(codingPath: [CodingKey], tokens: QSDecoderTokens) {
+        self.codingPath = codingPath
+        self.tokens = tokens
+        self.allKeys = self.tokens.allKeys(at: codingPath)
+    }
+
+    fileprivate var tokens: QSDecoderTokens
+
+    var codingPath: [CodingKey]
+
+    var allKeys: [Key]
+
+    func contains(_ key: Key) -> Bool {
+        return tokens.hasPath(codingPath + [key])
+    }
+
+    func decodeNil(forKey key: Key) throws -> Bool {
+        return false
+    }
+
+    func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
+        let str = tokens.getValue(codingPath + [key])
+        return tokens.decodeBoolValue(str)
+    }
+
+    func decode(_ type: String.Type, forKey key: Key) throws -> String {
+        return urlDecode(tokens.getValue(codingPath + [key]))
+    }
+
+    func decode(_ type: Double.Type, forKey key: Key) throws -> Double {
+        return Double(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: Float.Type, forKey key: Key) throws -> Float {
+        return Float(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: Int.Type, forKey key: Key) throws -> Int {
+        return Int(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: Int8.Type, forKey key: Key) throws -> Int8 {
+        return Int8(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: Int16.Type, forKey key: Key) throws -> Int16 {
+        return Int16(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: Int32.Type, forKey key: Key) throws -> Int32 {
+        return Int32(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: Int64.Type, forKey key: Key) throws -> Int64 {
+        return Int64(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: UInt.Type, forKey key: Key) throws -> UInt {
+        return UInt(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: UInt8.Type, forKey key: Key) throws -> UInt8 {
+        return UInt8(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: UInt16.Type, forKey key: Key) throws -> UInt16 {
+        return UInt16(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: UInt32.Type, forKey key: Key) throws -> UInt32 {
+        return UInt32(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode(_ type: UInt64.Type, forKey key: Key) throws -> UInt64 {
+        return UInt64(tokens.getValue(codingPath + [key]))!
+    }
+
+    func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
+        let decoder = QSItemDecoder(tokens)
+        decoder.codingPath = codingPath + [key]
+        return try T(from: decoder)
+    }
+
+    func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
+        let container = QSDecoderKeyedContainer<NestedKey>(codingPath: codingPath + [key], tokens: tokens)
+        return KeyedDecodingContainer(container)
+    }
+
+    func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
+        let container = QSDecoderUnkeyedContainer(codingPath: codingPath + [key], tokens: tokens)
+        return container
+    }
+
+    func superDecoder() throws -> Decoder {
+        let superKey = Key(stringValue: "super")!
+        return try superDecoder(forKey: superKey)
+    }
+
+    func superDecoder(forKey key: Key) throws -> Decoder {
+        let decoder = QSItemDecoder(tokens)
+        decoder.codingPath = codingPath + [key]
+        return decoder
+    }
+}
+
+class QSDecoderUnkeyedContainer: UnkeyedDecodingContainer {
+
+    private struct IndexedCodingKey: CodingKey {
+        let intValue: Int?
+        let stringValue: String
+
+        init?(intValue: Int) {
+            self.intValue = intValue
+            self.stringValue = intValue.description
+        }
+
+        init?(stringValue: String) {
+            return nil
+        }
+    }
+
+    private func nextIndexedKey() -> CodingKey {
+        let nextCodingKey = IndexedCodingKey(intValue: currentIndex)!
+        currentIndex += 1
+        if currentIndex == count {
+            isAtEnd = true
+        }
+        return nextCodingKey
+    }
+
+    fileprivate init(codingPath: [CodingKey], tokens: QSDecoderTokens) {
+        self.codingPath = codingPath
+        self.tokens = tokens
+        self.currentIndex = 0
+        self.isAtEnd = false
+        self.count = tokens.countForArrayAtCodingPath(codingPath)
+    }
+
+    fileprivate var tokens: QSDecoderTokens
+
+    var codingPath: [CodingKey]
+
+    var count: Int?
+
+    var isAtEnd: Bool
+
+    var currentIndex: Int
+
+    func decodeNil() throws -> Bool {
+        return true
+    }
+
+    func decode(_ type: Bool.Type) throws -> Bool {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return tokens.decodeBoolValue(string)
+    }
+
+    func decode(_ type: String.Type) throws -> String {
+        return urlDecode(tokens.getValue(codingPath + [nextIndexedKey()]))
+    }
+
+    func decode(_ type: Double.Type) throws -> Double {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return Double(string)!
+    }
+
+    func decode(_ type: Float.Type) throws -> Float {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return Float(string)!
+    }
+
+    func decode(_ type: Int.Type) throws -> Int {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return Int(string)!
+
+    }
+
+    func decode(_ type: Int8.Type) throws -> Int8 {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return Int8(string)!
+    }
+
+    func decode(_ type: Int16.Type) throws -> Int16 {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return Int16(string)!
+    }
+
+    func decode(_ type: Int32.Type) throws -> Int32 {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return Int32(string)!
+    }
+
+    func decode(_ type: Int64.Type) throws -> Int64 {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return Int64(string)!
+    }
+
+    func decode(_ type: UInt.Type) throws -> UInt {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return UInt(string)!
+    }
+
+    func decode(_ type: UInt8.Type) throws -> UInt8 {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return UInt8(string)!
+    }
+
+    func decode(_ type: UInt16.Type) throws -> UInt16 {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return UInt16(string)!
+    }
+
+    func decode(_ type: UInt32.Type) throws -> UInt32 {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return UInt32(string)!
+    }
+
+    func decode(_ type: UInt64.Type) throws -> UInt64 {
+        let string = tokens.getValue(codingPath + [nextIndexedKey()])
+        return UInt64(string)!
+    }
+
+    func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
+        let decoder = QSItemDecoder(tokens)
+        decoder.codingPath = codingPath
+        return try T.init(from: decoder)
+    }
+
+    func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
+        let container = QSDecoderKeyedContainer<NestedKey>(codingPath: codingPath + [nextIndexedKey()], tokens: tokens)
+        return KeyedDecodingContainer(container)
+    }
+
+    func nestedUnkeyedContainer() throws -> UnkeyedDecodingContainer {
+        return QSDecoderUnkeyedContainer(codingPath: codingPath + [nextIndexedKey()], tokens: tokens)
+    }
+
+    func superDecoder() throws -> Decoder {
+        let decoder = QSItemDecoder(tokens)
+        decoder.codingPath = codingPath + [nextIndexedKey()]
+        return decoder
+    }
+}
+
+class QSDecoderSingleValueContainer: SingleValueDecodingContainer {
+
+    fileprivate var tokens: QSDecoderTokens
+
+    var codingPath: [CodingKey]
+
+    fileprivate init(codingPath: [CodingKey], tokens: QSDecoderTokens) {
+        self.tokens = tokens
+        self.codingPath = codingPath
+    }
+
+    func decodeNil() -> Bool {
+        return false
+    }
+
+    func decode(_ type: Bool.Type) throws -> Bool {
+        let string = tokens.getValue(codingPath)
+        return tokens.decodeBoolValue(string)
+    }
+
+    func decode(_ type: String.Type) throws -> String {
+        return urlDecode(tokens.getValue(codingPath))
+    }
+
+    func decode(_ type: Double.Type) throws -> Double {
+        let string = tokens.getValue(codingPath)
+        return Double(string)!
+    }
+
+    func decode(_ type: Float.Type) throws -> Float {
+        let string = tokens.getValue(codingPath)
+        return Float(string)!
+    }
+
+    func decode(_ type: Int.Type) throws -> Int {
+        let string = tokens.getValue(codingPath)
+        return Int(string)!
+    }
+
+    func decode(_ type: Int8.Type) throws -> Int8 {
+        let string = tokens.getValue(codingPath)
+        return Int8(string)!
+    }
+
+    func decode(_ type: Int16.Type) throws -> Int16 {
+        let string = tokens.getValue(codingPath)
+        return Int16(string)!
+    }
+
+    func decode(_ type: Int32.Type) throws -> Int32 {
+        let string = tokens.getValue(codingPath)
+        return Int32(string)!
+    }
+
+    func decode(_ type: Int64.Type) throws -> Int64 {
+        let string = tokens.getValue(codingPath)
+        return Int64(string)!
+    }
+
+    func decode(_ type: UInt.Type) throws -> UInt {
+        let string = tokens.getValue(codingPath)
+        return UInt(string)!
+    }
+
+    func decode(_ type: UInt8.Type) throws -> UInt8 {
+        let string = tokens.getValue(codingPath)
+        return UInt8(string)!
+    }
+
+    func decode(_ type: UInt16.Type) throws -> UInt16 {
+        let string = tokens.getValue(codingPath)
+        return UInt16(string)!
+    }
+
+    func decode(_ type: UInt32.Type) throws -> UInt32 {
+        let string = tokens.getValue(codingPath)
+        return UInt32(string)!
+    }
+
+    func decode(_ type: UInt64.Type) throws -> UInt64 {
+        let string = tokens.getValue(codingPath)
+        return UInt64(string)!
+    }
+
+    func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
+        let decoder = QSItemDecoder(tokens)
+        decoder.codingPath = codingPath
+        return try T.init(from: decoder)
+    }
+}
+
+public class QSItemDecoder: Decoder {
+
+    fileprivate var tokens: QSDecoderTokens
+
+    fileprivate init(_ from: QSDecoderTokens) {
+        tokens = from
+    }
+
+    public var codingPath: [CodingKey] = []
+
+    public var userInfo: [CodingUserInfoKey : Any] = [:]
+
+    public func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key : CodingKey {
+        let container = QSDecoderKeyedContainer<Key>(codingPath: codingPath, tokens: tokens)
+        return KeyedDecodingContainer(container)
+    }
+
+    public func unkeyedContainer() throws -> UnkeyedDecodingContainer {
+        return QSDecoderUnkeyedContainer(codingPath: codingPath, tokens: tokens)
+    }
+
+    public func singleValueContainer() throws -> SingleValueDecodingContainer {
+        return QSDecoderSingleValueContainer(codingPath: codingPath, tokens: tokens)
+    }
+}
+
+public class QSDecoder: TopLevelDecoder {
+
+    public typealias Input = String
+
+    public func decode<T>(_ type: T.Type, from: Input) throws -> T where T : Decodable {
+        let decoder = QSItemDecoder(QSDecoderTokens(from))
+        return try T.init(from: decoder)
+    }
+}
