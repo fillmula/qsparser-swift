@@ -71,4 +71,28 @@ final class StringifyTests: XCTestCase {
         let obj = ["_includes": [["favorites": ["_includes": ["user"]]]]]
         XCTAssertEqual(stringify(obj), "_includes[0][favorites][_includes][0]=user")
     }
+
+    func testStringifyEncodesNilToNull() throws {
+        let obj = ["_includes": nil] as [String : Any?]
+        XCTAssertEqual(stringify(obj as [String : Any]), "_includes=null")
+    }
+
+    func testStringifyEncodesNullRepresentingStringIntoNullString() throws {
+        var obj = ["string": "null"]
+        XCTAssertEqual(stringify(obj), "string=%60null%60")
+        obj = ["string": "Null"]
+        XCTAssertEqual(stringify(obj), "string=%60Null%60")
+        obj = ["string": "NULL"]
+        XCTAssertEqual(stringify(obj), "string=%60NULL%60")
+    }
+
+    func testStringifyEncodesNilRepresentingStringIntoNilString() throws {
+        let obj = ["string": "nil"]
+        XCTAssertEqual(stringify(obj), "string=%60nil%60")
+    }
+
+    func testStringifyEncodesNoneRepresentingStringIntoNoneString() throws {
+        let obj = ["string": "None"]
+        XCTAssertEqual(stringify(obj), "string=%60None%60")
+    }
 }

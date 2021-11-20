@@ -32,6 +32,50 @@ public func stringify(_ obj: [String: Any]) -> String {
     return tokens.joined(separator: "&")
 }
 
+fileprivate func escapeNilString(_ value: String) -> String {
+    switch value {
+    case "nil":
+        return "`nil`"
+    case "null":
+        return "`null`"
+    case "Null":
+        return "`Null`"
+    case "NULL":
+        return "`NULL`"
+    case "None":
+        return "`None`"
+    default:
+        return value
+    }
+}
+
+fileprivate func unescapeNilString(_ value: String) -> String? {
+    switch value {
+    case "`nil`":
+        return "nil"
+    case "`null`":
+        return "null"
+    case "`Null`":
+        return "Null"
+    case "`NULL`":
+        return "NULL"
+    case "`None`":
+        return "None"
+    case "nil":
+        return nil
+    case "null":
+        return nil
+    case "Null":
+        return nil
+    case "NULL":
+        return nil
+    case "None":
+        return nil
+    default:
+        return value
+    }
+}
+
 fileprivate func genTokens(items: [String], value: Any?) -> [String] {
     var result: [String] = []
     if let nsValue = value as? NSNumber {
@@ -51,7 +95,7 @@ fileprivate func genTokens(items: [String], value: Any?) -> [String] {
         }
         return result
     } else if let stringValue = value as? String {
-        return ["\(genKey(items: items))=\(urlEncode(stringValue))"]
+        return ["\(genKey(items: items))=\(urlEncode(escapeNilString(stringValue)))"]
     } else if let dateValue = value as? Date {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
@@ -67,8 +111,8 @@ fileprivate func genKey(items: [String]) -> String {
     return "\(items[0])[\(items[1...].joined(separator: "]["))]".replacingOccurrences(of: "[]", with: "")
 }
 
-public func parse(_ qs: String) -> [String: Any] {
-    var result: [String: Any] = [:]
+public func parse(_ qs: String) -> [String: Any?] {
+    var result: [String: Any?] = [:]
     if qs == "" {
         return result
     }
@@ -77,7 +121,7 @@ public func parse(_ qs: String) -> [String: Any] {
         let parts = token.split(separator: "=").map {String($0)}
         let (key, value) = (parts[0], parts[1])
         let items = splitTokens(key)
-        result = combineResult(result, items, value) as! [String : Any]
+        result = combineResult(result, items, value) as! [String : Any?]
     }
     return result
 }
@@ -86,9 +130,9 @@ fileprivate func combineResult(_ original: Any, _ items: [String], _ value: Stri
     var result = original
     if items.count == 1 {
         if let dict = result as? [String:Any] {
-            return dict.merging([items[0]: urlDecode(value)]) { $1 }
+            return dict.merging([items[0]: unescapeNilString(urlDecode(value)) as Any]) { $1 }
         } else if let array = result as? [Any] {
-            return array + [urlDecode(value)]
+            return array + [unescapeNilString(urlDecode(value)) as Any]
         } else {
             return result
         }

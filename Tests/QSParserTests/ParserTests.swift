@@ -65,4 +65,26 @@ final class ParserTests: XCTestCase {
         let expected: [String:String] = [:]
         XCTAssertEqual(parse(original) as! [String:String], expected)
     }
+
+    func testParseDecodesNullIntoNil() throws {
+        XCTAssertEqual(parse("abc=null") as! [String: String?], ["abc": nil])
+        XCTAssertEqual(parse("abc=Null") as! [String: String?], ["abc": nil])
+        XCTAssertEqual(parse("abc=NULL") as! [String: String?], ["abc": nil])
+        XCTAssertEqual(parse("abc=nil") as! [String: String?], ["abc": nil])
+        XCTAssertEqual(parse("abc=None") as! [String: String?], ["abc": nil])
+    }
+
+    func testParseDecodesNullRepresentingStringIntoNullString() throws {
+        XCTAssertEqual(parse("abc=%60null%60") as! [String: String?], ["abc": "null"])
+        XCTAssertEqual(parse("abc=%60Null%60") as! [String: String?], ["abc": "Null"])
+        XCTAssertEqual(parse("abc=%60NULL%60") as! [String: String?], ["abc": "NULL"])
+    }
+
+    func testParseDecodesNilRepresentingStringIntoNilString() throws {
+        XCTAssertEqual(parse("abc=%60nil%60") as! [String: String?], ["abc": "nil"])
+    }
+
+    func testParseDecodesNoneRepresentingStringIntoNoneString() throws {
+        XCTAssertEqual(parse("abc=%60None%60") as! [String: String?], ["abc": "None"])
+    }
 }
