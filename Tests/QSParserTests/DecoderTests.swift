@@ -1,6 +1,7 @@
 import XCTest
 @testable import QSParser
 
+
 final class DecoderTests: XCTestCase {
 
     func testDecoderDecodesIntIntoInt() throws {
@@ -87,5 +88,16 @@ final class DecoderTests: XCTestCase {
     func testDecoderDecodesNoneRepresentingStringIntoNoneString() throws {
         let user = try QSDecoder().decode(User.self, from: "string=%60None%60")
         XCTAssertEqual(user.string, "None")
+    }
+
+    func testDecoderDecodesDateStringIntoDate() throws {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        let dateString = "2014-04-08T08:00:00.222Z"
+        let date = formatter.date(from: dateString)
+        let encoded = dateString.addingPercentEncoding(withAllowedCharacters: NSCharacterSet.alphanumerics)!
+        let user = try QSDecoder().decode(User.self, from: "date=\(encoded)")
+        XCTAssertEqual(user.date, date)
     }
 }

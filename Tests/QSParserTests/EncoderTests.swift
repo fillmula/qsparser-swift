@@ -1,6 +1,7 @@
 import XCTest
 @testable import QSParser
 
+
 final class EncoderTests: XCTestCase {
 
     func testEncoderEncodesIntIntoInt() throws {

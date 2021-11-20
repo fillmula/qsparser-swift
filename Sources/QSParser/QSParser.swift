@@ -140,6 +140,14 @@ private class QSEncoderTokens {
         }
     }
 
+    func encodeDate(key codingKey: [CodingKey], value: Date) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        let dateString = formatter.string(from: value)
+        encode(key: codingKey, value: dateString)
+    }
+
     func encodeString(key codingKey: [CodingKey], value: String) {
         switch value {
         case "nil":
@@ -233,11 +241,7 @@ private class QSEncoderSingleValueContainer: SingleValueEncodingContainer {
 
     func encode<T>(_ value: T) throws where T : Encodable {
         if let date = value as? Date {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            let dateString = formatter.string(from: date)
-            tokens.encode(key: codingPath, value: dateString)
+            tokens.encodeDate(key: codingPath, value: date)
         } else {
             let encoder = QSItemEncoder(to: tokens)
             encoder.codingPath = codingPath
@@ -341,11 +345,7 @@ private class QSEncoderUnkeyedContainer: UnkeyedEncodingContainer {
 
     func encode<T>(_ value: T) throws where T : Encodable {
         if let date = value as? Date {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            let dateString = formatter.string(from: date)
-            tokens.encode(key: codingPath + [nextIndexedKey()], value: dateString)
+            tokens.encodeDate(key: codingPath + [nextIndexedKey()], value: date)
         } else {
             let encoder = QSItemEncoder(to: tokens)
             encoder.codingPath = codingPath + [nextIndexedKey()]
@@ -442,11 +442,7 @@ private class QSEncoderKeyedContainer<Key: CodingKey>: KeyedEncodingContainerPro
 
     func encode<T>(_ value: T, forKey key: Key) throws where T : Encodable {
         if let date = value as? Date {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            let dateString = formatter.string(from: date)
-            tokens.encode(key: codingPath + [key], value: dateString)
+            tokens.encodeDate(key: codingPath + [key], value: date)
         } else {
             let encoder = QSItemEncoder(to: tokens)
             encoder.codingPath = codingPath + [key]
@@ -567,6 +563,14 @@ private class QSDecoderTokens {
             .map { $0.key.prefix(pathCountPlusOne) }
         filtered = Array(Set(filtered))
         return filtered.count
+    }
+
+    func decodeDateValueAt(_ codingPath: [CodingKey]) -> Date {
+        let value = getValue(codingPath)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter.date(from: urlDecode(value))!
     }
 
     func decodeStringValue(_ value: String) -> String {
@@ -690,9 +694,13 @@ class QSDecoderKeyedContainer<Key: CodingKey>: KeyedDecodingContainerProtocol {
     }
 
     func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T : Decodable {
-        let decoder = QSItemDecoder(tokens)
-        decoder.codingPath = codingPath + [key]
-        return try T(from: decoder)
+        if T.self == Date.self {
+            return tokens.decodeDateValueAt(codingPath + [key]) as! T
+        } else {
+            let decoder = QSItemDecoder(tokens)
+            decoder.codingPath = codingPath + [key]
+            return try T(from: decoder)
+        }
     }
 
     func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
@@ -833,9 +841,13 @@ class QSDecoderUnkeyedContainer: UnkeyedDecodingContainer {
     }
 
     func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
-        let decoder = QSItemDecoder(tokens)
-        decoder.codingPath = codingPath + [nextIndexedKey()]
-        return try T.init(from: decoder)
+        if T.self == Date.self {
+            return tokens.decodeDateValueAt(codingPath + [nextIndexedKey()]) as! T
+        } else {
+            let decoder = QSItemDecoder(tokens)
+            decoder.codingPath = codingPath + [nextIndexedKey()]
+            return try T.init(from: decoder)
+        }
     }
 
     func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
@@ -938,9 +950,13 @@ class QSDecoderSingleValueContainer: SingleValueDecodingContainer {
     }
 
     func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
-        let decoder = QSItemDecoder(tokens)
-        decoder.codingPath = codingPath
-        return try T.init(from: decoder)
+        if T.self == Date.self {
+            return tokens.decodeDateValueAt(codingPath) as! T
+        } else {
+            let decoder = QSItemDecoder(tokens)
+            decoder.codingPath = codingPath
+            return try T.init(from: decoder)
+        }
     }
 }
 
