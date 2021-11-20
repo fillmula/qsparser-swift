@@ -1,18 +1,6 @@
 import XCTest
 @testable import QSParser
 
-//struct User: Codable {
-//    var string: String? = nil
-//    var int: Int? = nil
-//    var double: Double? = nil
-//    var bool: Bool? = nil
-//    var date: Date? = nil
-//    var array: [UInt64] = []
-//    var dictionary: [String: String] = [:]
-//    var query: StringQuery? = nil
-//    var products: [Product] = []
-//}
-
 final class DecoderTests: XCTestCase {
 
     func testDecoderDecodesIntIntoInt() throws {
