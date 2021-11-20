@@ -178,4 +178,23 @@ final class EncoderTests: XCTestCase {
         ]))
         XCTAssertEqual(result, "products[0][name]=Q&products[1][name]=W")
     }
+
+    func testEncoderEncodesNullRepresentingStringIntoNullString() throws {
+        var result = try QSEncoder().encode(User(string: "null"))
+        XCTAssertEqual(result, "string=%60null%60")
+        result = try QSEncoder().encode(User(string: "Null"))
+        XCTAssertEqual(result, "string=%60Null%60")
+        result = try QSEncoder().encode(User(string: "NULL"))
+        XCTAssertEqual(result, "string=%60NULL%60")
+    }
+
+    func testEncoderEncodesNilRepresentingStringIntoNilString() throws {
+        let result = try QSEncoder().encode(User(string: "nil"))
+        XCTAssertEqual(result, "string=%60nil%60")
+    }
+
+    func testEncoderEncodesNoneRepresentingStringIntoNoneString() throws {
+        let result = try QSEncoder().encode(User(string: "None"))
+        XCTAssertEqual(result, "string=%60None%60")
+    }
 }

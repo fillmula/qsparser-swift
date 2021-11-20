@@ -140,6 +140,23 @@ private class QSEncoderTokens {
         }
     }
 
+    func encodeString(key codingKey: [CodingKey], value: String) {
+        switch value {
+        case "nil":
+            return encode(key: codingKey, value: "`nil`")
+        case "null":
+            return encode(key: codingKey, value: "`null`")
+        case "Null":
+            return encode(key: codingKey, value: "`Null`")
+        case "NULL":
+            return encode(key: codingKey, value: "`NULL`")
+        case "None":
+            return encode(key: codingKey, value: "`None`")
+        default:
+            return encode(key: codingKey, value: value)
+        }
+    }
+
     func generate() -> String {
         return tokens.joined(separator: "&")
     }
@@ -163,7 +180,7 @@ private class QSEncoderSingleValueContainer: SingleValueEncodingContainer {
     }
 
     func encode(_ value: String) throws {
-        tokens.encode(key: codingPath, value: value)
+        tokens.encodeString(key: codingPath, value: value)
     }
 
     func encode(_ value: Double) throws {
@@ -271,7 +288,7 @@ private class QSEncoderUnkeyedContainer: UnkeyedEncodingContainer {
     }
 
     func encode(_ value: String) throws {
-        tokens.encode(key: codingPath + [nextIndexedKey()], value: value)
+        tokens.encodeString(key: codingPath + [nextIndexedKey()], value: value)
     }
 
     func encode(_ value: Double) throws {
@@ -372,7 +389,7 @@ private class QSEncoderKeyedContainer<Key: CodingKey>: KeyedEncodingContainerPro
     }
 
     func encode(_ value: String, forKey key: Key) throws {
-        tokens.encode(key: codingPath + [key], value: value)
+        tokens.encodeString(key: codingPath + [key], value: value)
     }
 
     func encode(_ value: Double, forKey key: Key) throws {
@@ -501,6 +518,7 @@ private class QSDecoderTokens {
         let pairs = value.split(separator: "&")
             .map { $0.split(separator: "=").map { String($0) } }
             .map { (splitTokens($0[0]), $0[1]) }
+            .filter { isValidValue($0.1) }
         self.tokens = Dictionary(uniqueKeysWithValues: pairs)
     }
 
@@ -508,7 +526,7 @@ private class QSDecoderTokens {
 
     func hasPath(_ codingPath: [CodingKey]) -> Bool {
         let key = codingPath.map { $0.stringValue }
-        return tokens.contains { $0.key.starts(with: key)}
+        return tokens.contains { $0.key.starts(with: key) }
     }
 
     func getValue(_ codingPath: [CodingKey]) -> String {
@@ -516,8 +534,24 @@ private class QSDecoderTokens {
         return tokens.removeValue(forKey: key)!
     }
 
+    func isValidValue(_ str: String) -> Bool {
+        switch str {
+        case "nil":
+            return false
+        case "Null":
+            return false
+        case "null":
+            return false
+        case "NULL":
+            return false
+        case "None":
+            return false
+        default:
+            return true
+        }
+    }
+
     func allKeys<Key: CodingKey>(at codingPath: [CodingKey]) -> [Key] {
-        print(codingPath)
         let path = codingPath.map { $0.stringValue }
         let pathCountPlusOne = path.count + 1
         var filtered = tokens.filter { $0.key.starts(with: path) }
@@ -533,6 +567,24 @@ private class QSDecoderTokens {
             .map { $0.key.prefix(pathCountPlusOne) }
         filtered = Array(Set(filtered))
         return filtered.count
+    }
+
+    func decodeStringValue(_ value: String) -> String {
+        let decoded = urlDecode(value)
+        switch decoded {
+        case "`nil`":
+            return "nil"
+        case "`null`":
+            return "null"
+        case "`Null`":
+            return "Null"
+        case "`NULL`":
+            return "NULL"
+        case "`None`":
+            return "None"
+        default:
+            return decoded
+        }
     }
 
     func decodeBoolValue(_ value: String) -> Bool {
@@ -582,12 +634,11 @@ class QSDecoderKeyedContainer<Key: CodingKey>: KeyedDecodingContainerProtocol {
     }
 
     func decode(_ type: Bool.Type, forKey key: Key) throws -> Bool {
-        let str = tokens.getValue(codingPath + [key])
-        return tokens.decodeBoolValue(str)
+        return tokens.decodeBoolValue(tokens.getValue(codingPath + [key]))
     }
 
     func decode(_ type: String.Type, forKey key: Key) throws -> String {
-        return urlDecode(tokens.getValue(codingPath + [key]))
+        return tokens.decodeStringValue(tokens.getValue(codingPath + [key]))
     }
 
     func decode(_ type: Double.Type, forKey key: Key) throws -> Double {
@@ -714,12 +765,11 @@ class QSDecoderUnkeyedContainer: UnkeyedDecodingContainer {
     }
 
     func decode(_ type: Bool.Type) throws -> Bool {
-        let string = tokens.getValue(codingPath + [nextIndexedKey()])
-        return tokens.decodeBoolValue(string)
+        return tokens.decodeBoolValue(tokens.getValue(codingPath + [nextIndexedKey()]))
     }
 
     func decode(_ type: String.Type) throws -> String {
-        return urlDecode(tokens.getValue(codingPath + [nextIndexedKey()]))
+        return tokens.decodeStringValue(tokens.getValue(codingPath + [nextIndexedKey()]))
     }
 
     func decode(_ type: Double.Type) throws -> Double {
@@ -735,7 +785,6 @@ class QSDecoderUnkeyedContainer: UnkeyedDecodingContainer {
     func decode(_ type: Int.Type) throws -> Int {
         let string = tokens.getValue(codingPath + [nextIndexedKey()])
         return Int(string)!
-
     }
 
     func decode(_ type: Int8.Type) throws -> Int8 {
@@ -785,7 +834,7 @@ class QSDecoderUnkeyedContainer: UnkeyedDecodingContainer {
 
     func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
         let decoder = QSItemDecoder(tokens)
-        decoder.codingPath = codingPath
+        decoder.codingPath = codingPath + [nextIndexedKey()]
         return try T.init(from: decoder)
     }
 
@@ -821,12 +870,11 @@ class QSDecoderSingleValueContainer: SingleValueDecodingContainer {
     }
 
     func decode(_ type: Bool.Type) throws -> Bool {
-        let string = tokens.getValue(codingPath)
-        return tokens.decodeBoolValue(string)
+        return tokens.decodeBoolValue(tokens.getValue(codingPath))
     }
 
     func decode(_ type: String.Type) throws -> String {
-        return urlDecode(tokens.getValue(codingPath))
+        return tokens.decodeStringValue(tokens.getValue(codingPath))
     }
 
     func decode(_ type: Double.Type) throws -> Double {

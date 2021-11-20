@@ -63,15 +63,41 @@ final class DecoderTests: XCTestCase {
         XCTAssertEqual(user.products![0].name, "Q")
     }
 
-    func testDecoderDecodesListIntoMultipleNestedObject() throws {
-    }
-
     func testDecoderDecodesDictsInLists() throws {
-    }
-
-    func testDecoderDecodesALongStringIntoNestedItems() throws {
+        let user = try QSDecoder().decode(User.self, from: "products[0][name]=Q&products[1][name]=W")
+        XCTAssertEqual(user.products!.count, 2)
+        XCTAssertEqual(user.products![0].name, "Q")
+        XCTAssertEqual(user.products![1].name, "W")
     }
 
     func testDecoderDecodesEmptyStringIntoEmptyObject() throws {
+        let user = try QSDecoder().decode(User.self, from: "")
+        XCTAssertEqual(user.int, nil)
+    }
+
+    func testDecoderDecodesNullIntoNil() throws {
+        let user = try QSDecoder().decode(User.self, from: "int=null&double=null&string=None")
+        XCTAssertEqual(user.int, nil)
+        XCTAssertEqual(user.double, nil)
+        XCTAssertEqual(user.string, nil)
+    }
+
+    func testDecoderDecodesNullRepresentingStringIntoNullString() throws {
+        var user = try QSDecoder().decode(User.self, from: "string=%60null%60")
+        XCTAssertEqual(user.string, "null")
+        user = try QSDecoder().decode(User.self, from: "string=%60Null%60")
+        XCTAssertEqual(user.string, "Null")
+        user = try QSDecoder().decode(User.self, from: "string=%60NULL%60")
+        XCTAssertEqual(user.string, "NULL")
+    }
+
+    func testDecoderDecodesNilRepresentingStringIntoNilString() throws {
+        let user = try QSDecoder().decode(User.self, from: "string=%60nil%60")
+        XCTAssertEqual(user.string, "nil")
+    }
+
+    func testDecoderDecodesNoneRepresentingStringIntoNoneString() throws {
+        let user = try QSDecoder().decode(User.self, from: "string=%60None%60")
+        XCTAssertEqual(user.string, "None")
     }
 }
