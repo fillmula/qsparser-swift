@@ -1,3 +1,3 @@
 # QSParser
 
-A description of this package.
+Swift implementation of qsparser.
