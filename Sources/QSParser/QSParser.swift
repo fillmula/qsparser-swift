@@ -545,6 +545,8 @@ public class QSEncoder: TopLevelEncoder {
 
     public typealias Output = String
 
+    public init() { }
+
     public func encode<T>(_ value: T) throws -> Output where T : Encodable {
         let encoder = QSItemEncoder()
         try value.encode(to: encoder)
@@ -1033,6 +1035,8 @@ public class QSItemDecoder: Decoder {
 public class QSDecoder: TopLevelDecoder {
 
     public typealias Input = String
+
+    public init() { }
 
     public func decode<T>(_ type: T.Type, from: Input) throws -> T where T : Decodable {
         let decoder = QSItemDecoder(QSDecoderTokens(from))
